@@ -18,10 +18,44 @@ public class Message {
 			retain = (byte)(fixedHeader & 0x01);
 			type = MessageType.from((byte)( fixedHeader >> 4));
 			dup = (byte)((fixedHeader >> 3)&0b1);
-			qos = (byte)((fixedHeader >> 1)&0b111);
-			int len=decodeRemainingLength(bytes);
-			System.out.println("Message Len: "+len);
+			qos = (byte)((fixedHeader >> 1)&0b11);
+			int s=decodeRemainingLength(bytes);
+			if(s>0){
+				s=parseHeader(bytes,s);
+				parsePayload(bytes,s);
+			}
 			
+	}
+	private int decodeUTF8(byte[] bytes,int s){
+			int len=bytes[s]<<8|bytes[s+1];
+			s=s+2;
+			byte[] topicBytes=Arrays.copyOfRange(bytes, s, s+len);
+			topic=new String(topicBytes);
+			return s+len;
+	}
+	private void parsePayload(byte[] bytes,int s){
+			payload=Arrays.copyOfRange(bytes, s, bytes.length);
+			
+	}
+	private int parseHeader(byte[] bytes,int s){
+			switch (type) {
+					case PUBLISH:
+						s=decodeUTF8(bytes,s);
+						if (qos > 0) {
+							packetId=bytes[s]<<8|bytes[s+1];
+							s+=2;
+						}
+						break;
+					case PUBACK:
+					case SUBSCRIBE:
+					case SUBACK:
+						packetId=bytes[s]<<8|bytes[s+1];
+						s=s+2;
+						break;
+					default:
+						
+			}
+			return s;
 	}
     public void setTopic(String topic) {
         this.topic = topic;
@@ -58,8 +92,9 @@ public class Message {
 				return 0;
 			}
 
-		}while (( encodedByte & 128) != 0); 
-		return value;
+		}while (( encodedByte & 128) != 0);
+		if(value>0) return i;
+		else return 0;
 	}
 	byte[] encodeRemainingLength(int remainingLength){
 		byte[] encodedBytes = new byte[4];
@@ -69,7 +104,7 @@ public class Message {
 			byte encodedByte = (byte) (remainingLength % 128);
 			remainingLength /= 128;
 			if (remainingLength > 0) {
-				encodedByte |= 0x80;
+				encodedByte |= 128;
 			}
 			encodedBytes[k++] = encodedByte;
 		} while (remainingLength > 0);
@@ -117,7 +152,6 @@ public class Message {
         int len = utf.length;
         return concat(new byte[] { (byte)(len >> 8), (byte)(len & 0xFF) },str.getBytes());
     }
-
     private byte[] encodePacketId(int id) {
         return new byte[] { (byte)(id >> 8), (byte)(id & 0xFF) };
     }
@@ -127,21 +161,46 @@ public class Message {
         System.arraycopy(b, 0, out, a.length, b.length);
         return out;
     }
+	public void print() {
+		System.out.println("===== MQTT Message =====");
+		System.out.println("Type       : " + type);
+		System.out.println("DUP Flag   : " + dup);
+		System.out.println("QoS Level  : " + qos);
+		System.out.println("Retain     : " + retain);
+		
+		if (!topic.isEmpty()) {
+			System.out.println("Topic      : " + topic);
+		}
+
+		if (qos > 0 || type == MessageType.SUBSCRIBE || type == MessageType.SUBACK || type == MessageType.PUBACK) {
+			System.out.println("Packet ID  : " + packetId);
+		}
+
+		if (payload != null && payload.length > 0) {
+			String asString = new String(payload);
+			System.out.println("Payload    : \"" + asString + "\"");
+			 System.out.println();
+			
+		} else {
+			System.out.println("Payload    : [empty]");
+		}
+		System.out.println("========================");
+	}
+
 
     public static void main(String[] args) {
         Message pub = new Message(MessageType.PUBLISH);
         pub.setTopic("sensors/temperature");
         pub.setPacketId(42);
-        pub.qos = 0;
+        pub.qos = 1;
         pub.payload = "23.5".getBytes();
 
         byte[] bytes=pub.getMessageBytes();
 		
 		Message rpub =new Message(bytes);
-		System.out.printf("QoS: %d\n",rpub.qos);
-		for (byte b : bytes) {
-			System.out.printf("0x%02X ", b);
-		}
+		pub.print();
+		System.out.println("Recieved: ");
+		rpub.print();
     }
 }
 
