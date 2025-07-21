@@ -12,8 +12,9 @@ public class Broker {
         {
             ss = new ServerSocket(port);
             System.out.println("Server started");
+			System.out.println("Waiting for a client ...");
 			while(true){
-				System.out.println("Waiting for a client ...");
+				
 				s = ss.accept();
 				new ClientHandler(s).start();
 			}
