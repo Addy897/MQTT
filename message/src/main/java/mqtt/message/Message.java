@@ -53,6 +53,8 @@ public class Message {
 					case PUBACK:
 					case SUBSCRIBE:
 					case SUBACK:
+					case UNSUBSCRIBE:
+					case UNSUBACK:
 						packetId = dis.readUnsignedShort();
 						break;
 					default:
@@ -74,8 +76,9 @@ public class Message {
 	public void setQoS(int qos){
 			if(qos>0 &&qos<4){
 					this.qos=(byte)qos;
+			}else{
+				this.qos=0;
 			}
-			this.qos=0;
 	}
 	public void setDup(int dup){
 			this.dup=(byte)(dup==1?1:0);
@@ -136,7 +139,13 @@ public class Message {
 	}
 	public int getRetain(){
 			return Byte.toUnsignedInt(retain);
+	}	
+	public int getPacketId(){
+			return packetId;
 	}
+	public String getTopic() {
+        return topic;
+    }
 	public byte[] getMessageBytes(){
 			byte[] variableHeader =getVariableHeader();
 			int remainingLength=variableHeader.length+payload.length;
@@ -159,6 +168,8 @@ public class Message {
             case PUBACK:
             case SUBSCRIBE:
             case SUBACK:
+			case UNSUBSCRIBE:
+			case UNSUBACK:
                 return encodePacketId(packetId);
             default:
                 return new byte[0];
@@ -194,7 +205,7 @@ public class Message {
 			System.out.println("Topic      : " + topic);
 		}
 
-		if (qos > 0 || type == MessageType.SUBSCRIBE || type == MessageType.SUBACK || type == MessageType.PUBACK) {
+		if (packetId!=0) {
 			System.out.println("Packet ID  : " + packetId);
 		}
 
@@ -210,13 +221,6 @@ public class Message {
 	}
 
 
-    public static void main(String[] args) {
-        Message pub = new Message(MessageType.CONNECT);
-        
-
-        byte[] bytes=pub.getMessageBytes();
-		
-		
-    }
+    
 }
 

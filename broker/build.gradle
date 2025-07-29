@@ -1,0 +1,19 @@
+plugins {
+    id 'java-library'
+    id 'application'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    implementation project(':message')
+}
+
+application {
+    mainClass.set('MQTT.Broker.Broker')
+}
+tasks.named('run', JavaExec) {
+    standardInput = System.in
+}
